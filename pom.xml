@@ -56,6 +56,7 @@
 		<doxia-site-renderer.version>2.0.0</doxia-site-renderer.version>
 		<checkstyle.plugin.version>3.6.0</checkstyle.plugin.version>
 		<publish-maven-plugin.version>0.7.0</publish-maven-plugin.version>
+		<lombok.version>1.18.36</lombok.version>
 	</properties>
 	<dependencies>
 		<dependency>
@@ -110,6 +111,7 @@
 						<path>
 							<groupId>org.projectlombok</groupId>
 							<artifactId>lombok</artifactId>
+							<version>${lombok.version}</version>
 						</path>
 					</annotationProcessorPaths>
 				</configuration>
