@@ -18,9 +18,8 @@ import org.springframework.stereotype.Repository;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
-import java.util.Collection;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
+import java.util.function.Function;
 
 @Repository
 @RequiredArgsConstructor
@@ -30,11 +29,13 @@ public class R2dbcGenericSpecificationImpl implements R2dbcGenericSpecification 
     public <T, R> Mono<R> findOneBySpec(final CriteriaDefinition criteria,
                                         final Class<T> entityClass,
                                         final Class<R> dtoClass) {
-        final var query = Query.query(criteria);
-        return template.select(entityClass)
-                .as(dtoClass)
-                .matching(query)
-                .first();
+        return Mono.defer(() -> {
+            final var query = Query.query(criteria);
+            return template.select(entityClass)
+                    .as(dtoClass)
+                    .matching(query)
+                    .first();
+        });
     }
 
     @Override
@@ -57,14 +58,16 @@ public class R2dbcGenericSpecificationImpl implements R2dbcGenericSpecification 
                                      final Pageable pageable,
                                      final Class<T> entityClass,
                                      final Class<R> dtoClass) {
-        var query = Query.query(criteria);
-        if (Objects.nonNull(pageable)) {
-            query = query.with(pageable);
-        }
-        return template.select(entityClass)
-                .as(dtoClass)
-                .matching(query)
-                .all();
+        return Flux.defer(() -> {
+            var query = Query.query(criteria);
+            if (Objects.nonNull(pageable)) {
+                query = query.with(pageable);
+            }
+            return template.select(entityClass)
+                    .as(dtoClass)
+                    .matching(query)
+                    .all();
+        });
     }
 
     @Override
@@ -72,16 +75,18 @@ public class R2dbcGenericSpecificationImpl implements R2dbcGenericSpecification 
                                               final Pageable pageable,
                                               final Class<T> entityClass,
                                               final Class<R> dtoClass) {
-        final var query = Query.query(criteria)
-                .with(pageable);
-        final var count = template.count(query, entityClass);
-        final var dataFlux = template.select(entityClass)
-                .as(dtoClass)
-                .matching(query)
-                .all()
-                .collectList();
-        return dataFlux.zipWith(count)
-                .map(tuple2 -> new PageImpl<>(tuple2.getT1(), pageable, tuple2.getT2()));
+        return Mono.defer(() -> {
+            final var query = Query.query(criteria)
+                    .with(pageable);
+            final var count = template.count(query, entityClass);
+            final var dataFlux = template.select(entityClass)
+                    .as(dtoClass)
+                    .matching(query)
+                    .all()
+                    .collectList();
+            return dataFlux.zipWith(count)
+                    .map(tuple2 -> new PageImpl<>(tuple2.getT1(), pageable, tuple2.getT2()));
+        });
     }
 
     @Override
@@ -92,16 +97,87 @@ public class R2dbcGenericSpecificationImpl implements R2dbcGenericSpecification 
     }
 
     @Override
-    public <T, R> Flux<R> findBySpecWithRel(final CriteriaDefinition criteria, 
-                                            final Class<T> entityClass, 
+    public <T, R> Flux<R> findBySpecWithRel(final CriteriaDefinition criteria,
+                                            final Class<T> entityClass,
                                             final Class<R> dtoClass) {
-        final var dbClient = template.getDatabaseClient();
-        final var sqlMetadata = R2dbcHelper.buildSqlMetadata(criteria, entityClass, dtoClass);
-        return dbClient.sql(sqlMetadata.toSql())
-                .fetch()
-                .all()
-                .collectMultimap(map -> map.get(sqlMetadata.getPrimaryKey()))
-                .flatMapMany(map -> Flux.fromIterable(map.entrySet()).map(entry -> mapProperties(dtoClass, entry, sqlMetadata)));
+        return Flux.defer(() -> {
+            final var dbClient = template.getDatabaseClient();
+            final var sqlMetadata = R2dbcHelper.buildSqlMetadata(criteria, entityClass, dtoClass);
+            return dbClient.sql(sqlMetadata.toSql())
+                    .fetch()
+                    .all()
+                    .collectMultimap(map -> map.get(sqlMetadata.getAliasPrimaryKey()), Function.identity(), LinkedHashMap::new)
+                    .flatMapMany(map -> Flux.fromIterable(map.entrySet()).map(entry -> mapProperties(dtoClass, entry, sqlMetadata)));
+        });
+    }
+
+    @Override
+    public <T, R> Flux<R> findBySpecWithRel(final CriteriaDefinition criteria,
+                                            final Sort sort,
+                                            final Class<T> entityClass,
+                                            final Class<R> dtoClass) {
+        return findBySpecWithRel(criteria, Pageable.unpaged(sort), entityClass, dtoClass);
+    }
+
+    @Override
+    public <T, R> Flux<R> findBySpecWithRel(final CriteriaDefinition criteria,
+                                            final Pageable pageable,
+                                            final Class<T> entityClass,
+                                            final Class<R> dtoClass) {
+        return Flux.defer(() -> {
+            final var dbClient = template.getDatabaseClient();
+            final var sqlMetadata = R2dbcHelper.buildSqlMetadata(criteria, entityClass, dtoClass);
+            final var primaryKeys = dbClient.sql(sqlMetadata.toSqlDistinctPrimaryKey(pageable))
+                    .map((row, metadata) -> row.get(0))
+                    .all()
+                    .collectList();
+            return primaryKeys.flatMapMany(pks -> {
+                        if (pks.isEmpty()) {
+                            return Flux.empty();
+                        }
+                        return dbClient.sql(sqlMetadata.toSqlWhereInPrimaryKeys(pks, pageable))
+                                .fetch()
+                                .all()
+                                .collectMultimap(map -> map.get(sqlMetadata.getAliasPrimaryKey()), Function.identity(), LinkedHashMap::new)
+                                .flatMapMany(map -> Flux.fromIterable(map.entrySet()).map(entry -> mapProperties(dtoClass, entry, sqlMetadata)));
+                    }
+            );
+        });
+    }
+
+    @Override
+    public <T, R> Mono<Page<R>> getPageBySpecWithRel(final CriteriaDefinition criteria,
+                                                     final Pageable pageable,
+                                                     final Class<T> entityClass,
+                                                     final Class<R> dtoClass) {
+        return Mono.defer(() -> {
+            final var dbClient = template.getDatabaseClient();
+            final var sqlMetadata = R2dbcHelper.buildSqlMetadata(criteria, entityClass, dtoClass);
+
+            final var primaryKeys = dbClient.sql(sqlMetadata.toSqlDistinctPrimaryKey(pageable))
+                    .map((row, metadata) -> row.get(0))
+                    .all()
+                    .collectList();
+
+            final var count = dbClient.sql(sqlMetadata.toSqlCount())
+                    .mapValue(Long.class)
+                    .one();
+
+            return primaryKeys
+                    .flatMap(pks -> {
+                        if (pks.isEmpty()) {
+                            return Mono.just(new PageImpl<>(List.of(), pageable, 0));
+                        }
+                        return dbClient.sql(sqlMetadata.toSqlWhereInPrimaryKeys(pks, pageable))
+                                .fetch()
+                                .all()
+                                .collectMultimap(map -> map.get(sqlMetadata.getAliasPrimaryKey()), Function.identity(), LinkedHashMap::new)
+                                .flatMapMany(map -> Flux.fromIterable(map.entrySet()).map(entry -> mapProperties(dtoClass, entry, sqlMetadata)))
+                                .collectList()
+                                .zipWith(count)
+                                .map(tuple2 -> new PageImpl<>(tuple2.getT1(), pageable, tuple2.getT2()));
+                    });
+        });
     }
 
     private static <R> R mapProperties(final Class<R> dtoClass,

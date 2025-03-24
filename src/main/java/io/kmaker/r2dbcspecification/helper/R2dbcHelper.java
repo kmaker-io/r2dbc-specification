@@ -5,8 +5,8 @@ import io.kmaker.r2dbcspecification.annotation.IgnoreMapping;
 import io.kmaker.r2dbcspecification.spec.SqlMetadata;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.data.annotation.Id;
+import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.data.relational.core.mapping.Table;
-import org.springframework.data.relational.core.query.Criteria;
 import org.springframework.data.relational.core.query.CriteriaDefinition;
 import org.springframework.data.relational.core.sql.SqlIdentifier;
 import org.springframework.data.util.Pair;
@@ -16,37 +16,6 @@ import java.util.*;
 public final class R2dbcHelper {
 
     private R2dbcHelper() {
-    }
-
-    public static String buildSql(final Criteria criteria,
-                                  final Class<?> entityClass,
-                                  final Class<?> dtoClass) {
-        final var fromTable = getTableName(entityClass);
-        final var joinFields = ReflectionHelper.getAllFields(dtoClass, f -> f.isAnnotationPresent(FetchRelatedEntity.class));
-
-        final var joins = new StringBuilder();
-
-        final var primaryKeyFromTable = getPrimaryKey(entityClass);
-        final var columns = new ArrayList<>(selectFields(fromTable, entityClass));
-        for (final var joinField : joinFields) {
-            final var fetchMany = joinField.getDeclaredAnnotation(FetchRelatedEntity.class);
-            final var relatedEntity = fetchMany.relatedEntity();
-            final var joinTable = getTableName(relatedEntity);
-            columns.addAll(selectFields(joinTable, relatedEntity));
-
-            joins.append("\n").append("JOIN %s ON %s = %s".formatted(
-                    joinTable,
-                    toSqlIdentifier(fromTable, primaryKeyFromTable),
-                    toSqlIdentifier(joinTable, fetchMany.foreignKey())
-            ));
-        }
-
-        final var whereClause = criteria.isEmpty() ? "" : "\nWHERE %s".formatted(criteria.toString());
-
-        return "SELECT " + String.join(", ", columns) +
-                "\nFROM " + fromTable +
-                joins +
-                whereClause;
     }
 
     public static SqlMetadata buildSqlMetadata(final CriteriaDefinition criteria,
@@ -78,7 +47,8 @@ public final class R2dbcHelper {
 
         return new SqlMetadata()
                 .setFromTable(fromTable)
-                .setPrimaryKey(getAliasField(fromTable, primaryKeyFromTable))
+                .setPrimaryKey(toSqlIdentifier(fromTable, primaryKeyFromTable))
+                .setAliasPrimaryKey(getAliasField(fromTable, primaryKeyFromTable))
                 .setJoins(joins.toString())
                 .setRelationTables(relationTables)
                 .setSelectedColumns(columns)
@@ -123,7 +93,8 @@ public final class R2dbcHelper {
             throw new IllegalArgumentException("Cannot find primary key annotate with @Id of class '%s'".formatted(entityClass.getSimpleName()));
         }
         final var idField = idFields.getFirst();
-        return idField.getName();
+        final var idColumn = idField.getDeclaredAnnotation(Column.class);
+        return Objects.nonNull(idColumn) ? idColumn.value() : toSnakeCase(idField.getName());
     }
 
     public static String getTableName(final Class<?> entityClass) {

@@ -40,4 +40,19 @@ public interface R2dbcGenericSpecification {
     <T, R> Flux<R> findBySpecWithRel(CriteriaDefinition criteria,
                                      Class<T> entityClass,
                                      Class<R> dtoClass);
+
+    <T, R> Flux<R> findBySpecWithRel(CriteriaDefinition criteria,
+                                     Sort sort,
+                                     Class<T> entityClass,
+                                     Class<R> dtoClass);
+
+    <T, R> Flux<R> findBySpecWithRel(CriteriaDefinition criteria,
+                                     Pageable pageable,
+                                     Class<T> entityClass,
+                                     Class<R> dtoClass);
+
+    <T, R> Mono<Page<R>> getPageBySpecWithRel(CriteriaDefinition criteria,
+                                              Pageable pageable,
+                                              Class<T> entityClass,
+                                              Class<R> dtoClass);
 }

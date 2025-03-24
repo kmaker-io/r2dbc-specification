@@ -60,4 +60,28 @@ public class TestController {
         final var criteria = Criteria.where("users.id").is(userId);
         return r2dbcGenericSpecification.findOneBySpecWithRel(criteria, User.class, UserDto.class);
     }
+
+    @GetMapping("/users/limits")
+    public Flux<UserDto> getUsersLimit(
+            @RequestParam(value = "userId", required = false) final Long userId,
+            @RequestParam(value = "page", defaultValue = "0") final int page,
+            @RequestParam(value = "size", defaultValue = "4") final int size,
+            @RequestParam(value = "sortField", required = false) final String sortField,
+            @RequestParam(value = "sortDirection", required = false) final String sortDirection) {
+        final var criteria = Objects.isNull(userId) ? Criteria.empty() : Criteria.where("users.id").is(userId);
+        final var pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.valueOf(sortDirection), sortField));
+        return r2dbcGenericSpecification.findBySpecWithRel(criteria, pageable, User.class, UserDto.class);
+    }
+
+    @GetMapping("/users/page")
+    public Mono<Page<UserDto>> getUsersPage(
+            @RequestParam(value = "userId", required = false) final Long userId,
+            @RequestParam(value = "page", defaultValue = "0") final int page,
+            @RequestParam(value = "size", defaultValue = "4") final int size,
+            @RequestParam(value = "sortField", required = false) final String sortField,
+            @RequestParam(value = "sortDirection", required = false) final String sortDirection) {
+        final var criteria = Objects.isNull(userId) ? Criteria.empty() : Criteria.where("users.id").is(userId);
+        final var pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.valueOf(sortDirection), sortField));
+        return r2dbcGenericSpecification.getPageBySpecWithRel(criteria, pageable, User.class, UserDto.class);
+    }
 }
