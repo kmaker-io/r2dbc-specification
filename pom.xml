@@ -10,7 +10,7 @@
 	</parent>
 	<groupId>io.kmaker</groupId>
 	<artifactId>r2dbc-specification</artifactId>
-	<version>1.0.0-SNAPSHOT</version>
+	<version>1.0.0</version>
 	<name>r2dbc-specification</name>
 	<description>A minimal and easy-to-use specification pattern for R2dbcRepository in Spring. It provides a simple way to build dynamic queries using predicates, making it easier to filter data reactively without writing custom query methods.</description>
 	<url>https://github.com/kmaker-io/r2dbc-specification.git</url>
@@ -57,6 +57,7 @@
 		<checkstyle.plugin.version>3.6.0</checkstyle.plugin.version>
 		<publish-maven-plugin.version>0.7.0</publish-maven-plugin.version>
 		<lombok.version>1.18.36</lombok.version>
+		<caffeine.version>3.2.0</caffeine.version>
 	</properties>
 	<dependencies>
 		<dependency>
@@ -67,21 +68,31 @@
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-webflux</artifactId>
 		</dependency>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-autoconfigure</artifactId>
+		</dependency>
 
-		<dependency>
-			<groupId>org.postgresql</groupId>
-			<artifactId>postgresql</artifactId>
-			<scope>runtime</scope>
-		</dependency>
-		<dependency>
-			<groupId>org.postgresql</groupId>
-			<artifactId>r2dbc-postgresql</artifactId>
-			<scope>runtime</scope>
-		</dependency>
 		<dependency>
 			<groupId>org.projectlombok</groupId>
 			<artifactId>lombok</artifactId>
 			<optional>true</optional>
+		</dependency>
+		<dependency>
+			<groupId>com.github.ben-manes.caffeine</groupId>
+			<artifactId>caffeine</artifactId>
+			<version>${caffeine.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>com.h2database</groupId>
+			<artifactId>h2</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>io.r2dbc</groupId>
+			<artifactId>r2dbc-h2</artifactId>
+			<scope>test</scope>
 		</dependency>
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
@@ -116,18 +127,6 @@
 					</annotationProcessorPaths>
 				</configuration>
 			</plugin>
-			<plugin>
-				<groupId>org.springframework.boot</groupId>
-				<artifactId>spring-boot-maven-plugin</artifactId>
-				<configuration>
-					<excludes>
-						<exclude>
-							<groupId>org.projectlombok</groupId>
-							<artifactId>lombok</artifactId>
-						</exclude>
-					</excludes>
-				</configuration>
-			</plugin>
 
 			<!-- Plugin for publish to maven repo -->
 			<plugin>
@@ -152,6 +151,17 @@
 
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-dependency-plugin</artifactId>
+				<executions>
+					<execution>
+						<goals>
+							<goal>properties</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-surefire-plugin</artifactId>
 				<version>${maven-surefire-plugin.version}</version>
 				<configuration>
@@ -159,6 +169,10 @@
 					<!-- Enable detailed reports -->
 					<reportFormat>html</reportFormat>
 					<useFile>false</useFile>
+					<argLine>
+						-javaagent:${settings.localRepository}/org/mockito/mockito-core/${mockito.version}/mockito-core-${mockito.version}.jar
+						-Xshare:off
+					</argLine>
 				</configuration>
 			</plugin>
 			<!-- Surefire report plugin to generate the HTML report -->
@@ -218,6 +232,9 @@
 						</goals>
 					</execution>
 				</executions>
+				<configuration>
+					<passphraseEnvName>MAVEN_GPG_PASSPHRASE</passphraseEnvName>
+				</configuration>
 			</plugin>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>

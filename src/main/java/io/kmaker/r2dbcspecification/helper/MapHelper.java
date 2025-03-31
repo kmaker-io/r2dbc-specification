@@ -22,10 +22,11 @@ public final class MapHelper {
         }
         return data.entrySet()
                 .stream()
-                .filter(item -> item.getKey().startsWith(prefix))
+                .filter(item -> item.getKey().startsWith(prefix) && Objects.nonNull(item.getValue()))
                 .collect(Collectors.toMap(
                         km -> removePrefix ? km.getKey().replace(prefix + "_", "") : km.getKey(),
-                        Map.Entry::getValue
+                        Map.Entry::getValue,
+                        (existing, replacement) -> existing
                 ));
     }
 }

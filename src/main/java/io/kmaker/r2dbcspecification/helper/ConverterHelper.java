@@ -1,6 +1,7 @@
 package io.kmaker.r2dbcspecification.helper;
 
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
@@ -13,6 +14,7 @@ public final class ConverterHelper {
         OBJECT_MAPPER = new ObjectMapper();
         OBJECT_MAPPER.registerModule(new JavaTimeModule());
         OBJECT_MAPPER.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+        OBJECT_MAPPER.disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
     }
 
     public static ObjectMapper getObjectMapper() {

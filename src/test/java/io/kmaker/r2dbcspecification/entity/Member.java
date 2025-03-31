@@ -1,4 +1,4 @@
-package io.kmaker.r2dbcspecification.test;
+package io.kmaker.r2dbcspecification.entity;
 
 import lombok.Getter;
 import lombok.Setter;
@@ -8,23 +8,15 @@ import org.springframework.data.relational.core.mapping.Table;
 
 import java.time.LocalDate;
 
-@Table("users")
+@Table(name = "member")
 @Getter
 @Setter
-public class User {
-
+public class Member {
     @Id
     private Long id;
-
-    @Column("first_name")
-    private String firstName;
-
-    @Column("last_name")
-    private String lastName;
-
-    @Column("email")
+    @Column("full_name")
+    private String fullName;
     private String email;
-
-    @Column("created_at")
-    private LocalDate createdAt;
+    @Column("membership_date")
+    private LocalDate membershipDate;
 }

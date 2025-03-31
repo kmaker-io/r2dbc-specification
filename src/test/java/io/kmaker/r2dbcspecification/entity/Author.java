@@ -1,4 +1,4 @@
-package io.kmaker.r2dbcspecification.test;
+package io.kmaker.r2dbcspecification.entity;
 
 import lombok.Getter;
 import lombok.Setter;
@@ -6,20 +6,13 @@ import org.springframework.data.annotation.Id;
 import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.data.relational.core.mapping.Table;
 
-@Table(name = "students")
-@Getter
 @Setter
-public class Student {
-
+@Getter
+@Table("author")
+public class Author {
     @Id
     private Long id;
-
-    @Column("first_name")
-    private String firstName;
-
-    @Column("last_name")
-    private String lastName;
-
-    @Column("age")
-    private int age;
+    private String name;
+    @Column("birth_year")
+    private int birthYear;
 }

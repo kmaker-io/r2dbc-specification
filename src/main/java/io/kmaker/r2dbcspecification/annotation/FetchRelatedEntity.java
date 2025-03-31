@@ -31,7 +31,7 @@ public @interface FetchRelatedEntity {
 
     @Getter
     enum JOIN_TYPE {
-        JOIN("JOIN"),
+        JOIN("INNER JOIN"),
         LEFT_JOIN("LEFT JOIN"),
         RIGHT_JOIN("RIGHT JOIN");
 

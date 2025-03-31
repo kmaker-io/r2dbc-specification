@@ -1,4 +1,4 @@
-package io.kmaker.r2dbcspecification.test;
+package io.kmaker.r2dbcspecification.entity;
 
 import lombok.Getter;
 import lombok.Setter;
@@ -6,24 +6,18 @@ import org.springframework.data.annotation.Id;
 import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.data.relational.core.mapping.Table;
 
-import java.time.LocalDate;
-
-@Table("posts")
+@Table("book")
 @Getter
 @Setter
-public class Post {
+public class Book {
     @Id
     private Long id;
-
-    @Column("user_id")
-    private Long userId;
-
-    @Column("title")
     private String title;
-
-    @Column("content")
-    private String content;
-
-    @Column("created_at")
-    private LocalDate createdAt;
+    private String genre;
+    @Column("publication_year")
+    private int publicationYear;
+    @Column("available_copies")
+    private int availableCopies;
+    @Column("author_id")
+    private Long authorId;
 }
